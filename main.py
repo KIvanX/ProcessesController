@@ -164,7 +164,7 @@ async def main():
     dp.message.register(start, Command('start'))
     asyncio.create_task(restorer())
 
-    print('Controller is running...')
+    logging.warning('Controller is running...')
     await dp.start_polling(bot)
 
 

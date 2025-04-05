@@ -26,9 +26,10 @@ pause, created = True, 0
 
 logging.root.handlers.clear()
 logging.basicConfig(level=logging.WARNING, filename="logs.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s\n" + '_' * 100)
+open(os.environ['WORKER_PATH'] + '/logs.log', 'w').close()
 
 
-def get_processes():
+def get_processes(with_sum=False):
     with open(os.environ['WORKER_PATH'] + '/logs.log') as f:
         logs = f.read().split('\n')
 
@@ -39,7 +40,7 @@ def get_processes():
                 processes[process.pid] = len([log for log in logs if log.startswith(f'[{process.pid}]') and 'DONE' in log])
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
-    return processes
+    return processes if not with_sum else processes, logs.count('DONE')
 
 
 async def restorer():

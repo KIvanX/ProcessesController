@@ -21,7 +21,7 @@ dotenv.load_dotenv()
 NUM_PROCESSES = 2
 bot = Bot(token=os.environ['TOKEN'], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
-ipv4 = requests.get("https://ifconfig.me").text.strip()
+ipv4 = requests.get("https://ipv4.ifconfig.me").text.strip()
 pause, created = True, 0
 
 logging.root.handlers.clear()

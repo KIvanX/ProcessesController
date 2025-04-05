@@ -85,7 +85,7 @@ async def start(data):
 
 @dp.callback_query(F.data.startswith('process_'))
 async def process_menu(call: types.CallbackQuery):
-    pid = call.data.split('_')[1]
+    pid = int(call.data.split('_')[1])
 
     keyboard = InlineKeyboardBuilder()
     keyboard.row(types.InlineKeyboardButton(text='🏁 Завершить', callback_data=f'stop_{pid}'))
@@ -93,7 +93,7 @@ async def process_menu(call: types.CallbackQuery):
     keyboard.row(types.InlineKeyboardButton(text='⬅️ Назад', callback_data='start'))
 
     process = get_processes()
-    await call.message.edit_text(f'Процесс <code>{pid}</code>: {process[pid]}', reply_markup=keyboard.as_markup())
+    await call.message.edit_text(f'Процесс <code>{pid}</code>: {process.get(pid, "-")}', reply_markup=keyboard.as_markup())
 
 
 @dp.callback_query(F.data == 'new_process')
@@ -133,6 +133,14 @@ async def kill_all_process(call: types.CallbackQuery):
     pause = True
     await call.answer(f'✅ Все процессы убиты')
     await start(call)
+
+
+@dp.callback_query(F.data == 'del')
+async def del_message(call: types.CallbackQuery):
+    try:
+        await call.message.delete()
+    finally:
+        pass
 
 
 @dp.callback_query(F.data == 'all_start')

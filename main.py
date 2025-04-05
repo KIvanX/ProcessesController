@@ -94,7 +94,7 @@ async def process_menu(call: types.CallbackQuery):
 @dp.callback_query(F.data == 'new_process')
 async def new_process(call: types.CallbackQuery):
     path = os.environ["WORKER_PATH"]
-    subprocess.Popen(f'nohup {path}/.venv/bin/python {path}/main.py &', shell=True, cwd=path)
+    subprocess.Popen(f'{path}/.venv/bin/python {path}/main.py', shell=True, cwd=path)
     await call.answer('✅ Процесс запущен')
     await start(call)
 

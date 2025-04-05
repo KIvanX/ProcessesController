@@ -1,3 +1,4 @@
+import logging
 import signal
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from aiogram import types, F, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
+from aiogram.types import FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 dotenv.load_dotenv()
@@ -22,8 +24,8 @@ dp = Dispatcher()
 ipv4 = requests.get("https://ifconfig.me").text.strip()
 pause = True
 
-# logging.root.handlers.clear()
-# logging.basicConfig(level=logging.WARNING, filename="logs.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s\n" + '_' * 100)
+logging.root.handlers.clear()
+logging.basicConfig(level=logging.WARNING, filename="logs.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s\n" + '_' * 100)
 
 
 def get_processes():
@@ -140,6 +142,17 @@ async def set_num_processes(message: types.Message):
     global NUM_PROCESSES
     NUM_PROCESSES = int(message.text)
     await message.delete()
+
+
+@dp.message(Command('logs'))
+async def get_logs(message: types.Message):
+    if message.chat.id == os.environ['ADMIN_ID']:
+        await message.delete()
+        keyboard = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text='ОК', callback_data='del'))
+        await bot.send_document(message.chat.id, FSInputFile('logs.log'), reply_markup=keyboard.as_markup())
+
+        with open('logs.log', 'w') as file:
+            file.write(str(datetime.now()) + '\n')
 
 
 @dp.startup()

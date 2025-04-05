@@ -40,7 +40,7 @@ def get_processes(with_sum=False):
                 processes[process.pid] = len([log for log in logs if log.startswith(f'[{process.pid}]') and 'DONE' in log])
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
-    return processes if not with_sum else (processes, logs.count('DONE'))
+    return processes if not with_sum else (processes, ''.join(logs).count('DONE'))
 
 
 async def restorer():

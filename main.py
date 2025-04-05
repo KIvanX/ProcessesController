@@ -40,7 +40,7 @@ def get_processes(with_sum=False):
                 processes[process.pid] = len([log for log in logs if log.startswith(f'[{process.pid}]') and 'DONE' in log])
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
-    return processes if not with_sum else processes, logs.count('DONE')
+    return processes if not with_sum else (processes, logs.count('DONE'))
 
 
 async def restorer():
@@ -58,7 +58,7 @@ async def restorer():
 async def start(data):
     message: types.Message = data.message if isinstance(data, types.CallbackQuery) else data
 
-    processes = get_processes()
+    processes, count = get_processes(with_sum=True)
     ssd, ram = psutil.disk_usage('/'), psutil.virtual_memory()
     text = f'⚙️ <b>Общая информация о системе</b>\n\n' \
            f'<b>Public IP:</b> <code>{ipv4}</code>\n' \
@@ -67,12 +67,12 @@ async def start(data):
            f'<b>SSD:</b> <b>{ssd.used / (1024 ** 3):.2f}</b>GB / <b>{ssd.total / (1024 ** 3):.2f}</b>GB (<b>{ssd.percent}</b>%)\n' \
            f'<b>Запущена:</b> <b>{datetime.fromtimestamp(psutil.boot_time()).strftime("%d.%m.%Y, %H:%M")}</b>\n\n' \
            f'🧑‍💻 <b>Процессы</b> (<b>{len(processes)}</b> / <b>{NUM_PROCESSES}</b>)\n' \
-           f'Всего выполнено: <b>{sum(processes.values())}</b>\n' \
+           f'Всего выполнено: <b>{count}</b>\n' \
            f'Процессов создано: <b>{created}</b>\n'
 
     keyboard = InlineKeyboardBuilder()
     for pid in processes:
-        keyboard.add(types.InlineKeyboardButton(text=str(pid), callback_data=f'process_{pid}'))
+        keyboard.add(types.InlineKeyboardButton(text=f'{pid} ({processes[pid]})', callback_data=f'process_{pid}'))
     keyboard.row(types.InlineKeyboardButton(text='🔄 Обновить', callback_data='start'))
     if processes:
         keyboard.row(types.InlineKeyboardButton(text='🔴 Завершить процессы', callback_data='all_stop'))

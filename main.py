@@ -73,6 +73,7 @@ async def start(data):
     keyboard = InlineKeyboardBuilder()
     for pid in processes:
         keyboard.add(types.InlineKeyboardButton(text=f'{pid} ({processes[pid]})', callback_data=f'process_{pid}'))
+    keyboard.adjust(3)
     keyboard.row(types.InlineKeyboardButton(text='🔄 Обновить', callback_data='start'))
     if processes:
         keyboard.row(types.InlineKeyboardButton(text='🔴 Завершить процессы', callback_data='all_stop'))

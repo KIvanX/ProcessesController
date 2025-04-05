@@ -22,29 +22,34 @@ NUM_PROCESSES = 2
 bot = Bot(token=os.environ['TOKEN'], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 ipv4 = requests.get("https://ifconfig.me").text.strip()
-pause = True
+pause, created = True, 0
 
 logging.root.handlers.clear()
 logging.basicConfig(level=logging.WARNING, filename="logs.log", filemode="a", format="%(asctime)s %(levelname)s %(message)s\n" + '_' * 100)
 
 
 def get_processes():
-    processes = []
+    with open(os.environ['WORKER_PATH'] + '/logs.log') as f:
+        logs = f.read().split('\n')
+
+    processes = {}
     for process in psutil.process_iter():
         try:
             if process.name() == 'python' and process.cwd().startswith(os.environ['WORKER_PATH']):
-                processes.append(process.pid)
+                processes[process.pid] = len([log for log in logs if log.startswith(f'[{process.pid}]') and 'DONE' in log])
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
     return processes
 
 
 async def restorer():
+    global created, pause
     while True:
         processes = get_processes()
         if not pause and len(processes) < NUM_PROCESSES:
             path = os.environ["WORKER_PATH"]
             subprocess.Popen(f'nohup {path}/.venv/bin/python {path}/main.py &', shell=True, cwd=path)
+            created += 1
         await asyncio.sleep(10)
 
 
@@ -60,7 +65,9 @@ async def start(data):
            f'<b>RAM:</b> <b>{ram.used / (1024 ** 3):.2f}</b>GB / <b>{ram.total / (1024 ** 3):.2f}</b>GB (<b>{ram.percent}</b>%)\n' \
            f'<b>SSD:</b> <b>{ssd.used / (1024 ** 3):.2f}</b>GB / <b>{ssd.total / (1024 ** 3):.2f}</b>GB (<b>{ssd.percent}</b>%)\n' \
            f'<b>Запущена:</b> <b>{datetime.fromtimestamp(psutil.boot_time()).strftime("%d.%m.%Y, %H:%M")}</b>\n\n' \
-           f'🧑‍💻 <b>Работающие процессы</b> (<b>{len(processes)}</b> / <b>{NUM_PROCESSES}</b>)'
+           f'🧑‍💻 <b>Процессы</b> (<b>{len(processes)}</b> / <b>{NUM_PROCESSES}</b>)\n' \
+           f'Всего выполнено: <b>{sum(processes.values())}</b>\n' \
+           f'Процессов создано: <b>{created}</b>\n'
 
     keyboard = InlineKeyboardBuilder()
     for pid in processes:
@@ -79,22 +86,22 @@ async def start(data):
 @dp.callback_query(F.data.startswith('process_'))
 async def process_menu(call: types.CallbackQuery):
     pid = call.data.split('_')[1]
-    with open(os.environ['WORKER_PATH'] + '/logs.log') as f:
-        logs = f.read().split('\n')
 
     keyboard = InlineKeyboardBuilder()
     keyboard.row(types.InlineKeyboardButton(text='🏁 Завершить', callback_data=f'stop_{pid}'))
     keyboard.row(types.InlineKeyboardButton(text='☠️ Убить', callback_data=f'kill_{pid}'))
     keyboard.row(types.InlineKeyboardButton(text='⬅️ Назад', callback_data='start'))
 
-    done = len([log for log in logs if log.startswith(f'[{pid}]') and 'DONE' in log])
-    await call.message.edit_text(f'Процесс <code>{pid}</code>: {done}', reply_markup=keyboard.as_markup())
+    process = get_processes()
+    await call.message.edit_text(f'Процесс <code>{pid}</code>: {process[pid]}', reply_markup=keyboard.as_markup())
 
 
 @dp.callback_query(F.data == 'new_process')
 async def new_process(call: types.CallbackQuery):
+    global created
     path = os.environ["WORKER_PATH"]
     subprocess.Popen(f'{path}/.venv/bin/python {path}/main.py', shell=True, cwd=path)
+    created += 1
     await call.answer('✅ Процесс запущен')
     await start(call)
 

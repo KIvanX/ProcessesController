@@ -146,7 +146,9 @@ async def set_num_processes(message: types.Message):
 
 @dp.message(Command('logs'))
 async def get_logs(message: types.Message):
+    print(1)
     if message.chat.id == os.environ['ADMIN_ID']:
+        print(2)
         await message.delete()
         keyboard = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text='ОК', callback_data='del'))
         await bot.send_document(message.chat.id, FSInputFile('logs.log'), reply_markup=keyboard.as_markup())

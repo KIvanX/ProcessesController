@@ -172,6 +172,14 @@ async def get_logs(message: types.Message):
             file.write(str(datetime.now()) + '\n')
 
 
+@dp.message(Command('reset'))
+async def reset(message: types.Message):
+    global created
+    if str(message.chat.id) == os.environ['ADMIN_ID']:
+        open(os.environ['WORKER_PATH'] + '/logs.log', 'w').close()
+        created = 0
+
+
 @dp.startup()
 async def on_start():
     await bot.set_my_commands([types.BotCommand(command='start', description='Старт')])

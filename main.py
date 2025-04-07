@@ -178,6 +178,7 @@ async def reset(message: types.Message):
     if str(message.chat.id) == os.environ['ADMIN_ID']:
         open(os.environ['WORKER_PATH'] + '/logs.log', 'w').close()
         created = 0
+        await message.delete()
 
 
 @dp.startup()

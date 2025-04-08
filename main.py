@@ -78,7 +78,7 @@ async def restorer():
                 logs = f.read().split('\n')
 
             for pid in processes:
-                dones = [log for log in logs if log.startswith(f'[{pid}]')]
+                dones = [log for log in logs if log.startswith(f'[{pid}]') and 'WARNING' in log]
                 if dones:
                     dt = datetime.strptime(dones[-1].split(']')[1].split('WARN')[0][1:-1], '%Y-%m-%d %H:%M:%S,%f')
                     if dt + timedelta(minutes=3) < datetime.now():
@@ -158,6 +158,11 @@ async def kill_all_process(call: types.CallbackQuery):
     for process in get_processes():
         await terminate_process(process, timeout=3)
 
+    try:
+        subprocess.run(['pkill', '-f', 'chrome'], check=True)
+    except:
+        pass
+
     await start(call)
 
 
@@ -202,44 +207,6 @@ async def reset(message: types.Message):
     if str(message.chat.id) == os.environ['ADMIN_ID']:
         open(os.environ['WORKER_PATH'] + '/logs.log', 'w').close()
         created = 0
-        pause = True
-        await message.delete()
-        force_kill_chrome()
-
-
-def force_kill_chrome():
-    chrome_pids = []
-
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'status']):
-        try:
-            cmdline = ' '.join(proc.info['cmdline']).lower()
-
-            # Расширенная фильтрация процессов
-            is_chrome = any(
-                keyword in cmdline
-                for keyword in (
-                    'chrome',
-                    'chromedriver',
-                    'chromium',
-                    'headless',
-                    '--type=renderer',
-                    '--type=gpu-process'
-                )
-            )
-
-            if is_chrome and proc.info['status'] != psutil.STATUS_ZOMBIE:
-                print(f"Found: PID={proc.info['pid']} CMD={cmdline[:120]}...")
-                chrome_pids.append(proc.info['pid'])
-                proc.kill()
-
-        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-            print(f"Error with PID {proc.info['pid']}: {str(e)}")
-            continue
-
-    # Двойная проверка через системные вызовы
-    if chrome_pids:
-        os.system("pkill -9 -f chrome")
-        os.system("pkill -9 -f chromedriver")
 
 
 @dp.startup()

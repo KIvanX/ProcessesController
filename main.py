@@ -1,6 +1,7 @@
 import logging
 import signal
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 
 import dotenv
 import asyncio
@@ -40,7 +41,27 @@ def get_processes(with_sum=False):
                 processes[process.pid] = len([log for log in logs if log.startswith(f'[{process.pid}]') and 'DONE' in log])
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
+
     return processes if not with_sum else (processes, ''.join(logs).count('DONE'))
+
+
+async def terminate_process(pid, timeout=5):
+    try:
+        os.kill(pid, signal.SIGTERM)
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                return True
+            await asyncio.sleep(0.1)
+
+        os.kill(pid, signal.SIGKILL)
+        return False
+
+    except Exception as e:
+        logging.error('Terminate process error: ' + str(e))
 
 
 async def restorer():
@@ -51,6 +72,17 @@ async def restorer():
             path = os.environ["WORKER_PATH"]
             subprocess.Popen(f'nohup {path}/.venv/bin/python {path}/main.py &', shell=True, cwd=path)
             created += 1
+
+        with open(os.environ['WORKER_PATH'] + '/logs.log') as f:
+            logs = f.read().split('\n')
+
+        for pid in processes:
+            dones = [log for log in logs if log.startswith(f'[{pid}]')]
+            if dones:
+                dt = datetime.strptime(dones[-1].split(']')[1].split('WARN')[0][1:-1], '%Y-%m-%d %H:%M:%S,%f')
+                if dt + timedelta(minutes=3) < datetime.now():
+                    await terminate_process(pid)
+
         await asyncio.sleep(10)
 
 
@@ -91,7 +123,6 @@ async def process_menu(call: types.CallbackQuery):
 
     keyboard = InlineKeyboardBuilder()
     keyboard.row(types.InlineKeyboardButton(text='🏁 Завершить', callback_data=f'stop_{pid}'))
-    keyboard.row(types.InlineKeyboardButton(text='☠️ Убить', callback_data=f'kill_{pid}'))
     keyboard.row(types.InlineKeyboardButton(text='⬅️ Назад', callback_data='start'))
 
     process = get_processes()
@@ -108,32 +139,22 @@ async def new_process(call: types.CallbackQuery):
     await start(call)
 
 
-@dp.callback_query(F.data.startswith('stop_') | F.data.startswith('kill_'))
+@dp.callback_query(F.data.startswith('stop_'))
 async def stop_process(call: types.CallbackQuery):
-    try:
-        os.kill(int(call.data.split('_')[1]), signal.SIGTERM if call.data.startswith('stop') else signal.SIGKILL)
-        await call.answer(f'✅ Процесс {"завершен" if call.data.startswith("stop") else "убит"}')
-    except OSError:
-        await call.answer('❗️ Не удалось завершить процесс')
-
+    status = await terminate_process(int(call.data.split('_')[1]))
+    await call.answer(f'✅ Процесс {"завершен" if status else "убит"}')
     await start(call)
 
 
 @dp.callback_query(F.data == 'all_stop')
 async def kill_all_process(call: types.CallbackQuery):
     global pause
-    try:
-        for process in get_processes():
-            os.kill(process, signal.SIGTERM)
-        await call.answer(f'💤 Завершение процессов...')
-        await asyncio.sleep(3)
-        for process in get_processes():
-            os.kill(process, signal.SIGKILL)
-    except OSError:
-        pass
+    await call.answer(f'💤 Завершение процессов...')
 
     pause = True
-    await call.answer(f'✅ Все процессы убиты')
+    for process in get_processes():
+        await terminate_process(process, timeout=3)
+
     await start(call)
 
 

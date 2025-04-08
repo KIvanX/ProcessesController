@@ -67,23 +67,26 @@ async def terminate_process(pid, timeout=5):
 async def restorer():
     global created, pause
     while True:
-        processes = get_processes()
-        if not pause and len(processes) < NUM_PROCESSES:
-            path = os.environ["WORKER_PATH"]
-            subprocess.Popen(f'nohup {path}/.venv/bin/python {path}/main.py &', shell=True, cwd=path)
-            created += 1
+        try:
+            processes = get_processes()
+            if not pause and len(processes) < NUM_PROCESSES:
+                path = os.environ["WORKER_PATH"]
+                subprocess.Popen(f'nohup {path}/.venv/bin/python {path}/main.py &', shell=True, cwd=path)
+                created += 1
 
-        with open(os.environ['WORKER_PATH'] + '/logs.log') as f:
-            logs = f.read().split('\n')
+            with open(os.environ['WORKER_PATH'] + '/logs.log') as f:
+                logs = f.read().split('\n')
 
-        for pid in processes:
-            dones = [log for log in logs if log.startswith(f'[{pid}]')]
-            if dones:
-                dt = datetime.strptime(dones[-1].split(']')[1].split('WARN')[0][1:-1], '%Y-%m-%d %H:%M:%S,%f')
-                if dt + timedelta(minutes=3) < datetime.now():
-                    await terminate_process(pid)
+            for pid in processes:
+                dones = [log for log in logs if log.startswith(f'[{pid}]')]
+                if dones:
+                    dt = datetime.strptime(dones[-1].split(']')[1].split('WARN')[0][1:-1], '%Y-%m-%d %H:%M:%S,%f')
+                    if dt + timedelta(minutes=3) < datetime.now():
+                        await terminate_process(pid)
 
-        await asyncio.sleep(10)
+            await asyncio.sleep(10)
+        except Exception as e:
+            logging.error('Restorer error: ' + str(e))
 
 
 @dp.callback_query(F.data == 'start')

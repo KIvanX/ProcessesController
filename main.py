@@ -206,7 +206,7 @@ async def reset(message: types.Message):
         await message.delete()
         for process in psutil.process_iter():
             if any(keyword in ' '.join(process.info['cmdline']).lower() for keyword in ('chrome', 'chromedriver')):
-                await terminate_process(process.pid)
+                process.kill()
 
 
 @dp.startup()

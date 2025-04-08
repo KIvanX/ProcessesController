@@ -205,7 +205,7 @@ async def reset(message: types.Message):
         pause = True
         await message.delete()
         for process in psutil.process_iter():
-            if process.name().lower() == 'chrome':
+            if 'chrome' in process.info['name'].lower():
                 await terminate_process(process.pid)
 
 

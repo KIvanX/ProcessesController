@@ -204,9 +204,42 @@ async def reset(message: types.Message):
         created = 0
         pause = True
         await message.delete()
-        for process in psutil.process_iter():
-            if any(keyword in ' '.join(process.info['cmdline']).lower() for keyword in ('chrome', 'chromedriver')):
-                process.kill()
+        force_kill_chrome()
+
+
+def force_kill_chrome():
+    chrome_pids = []
+
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'status']):
+        try:
+            cmdline = ' '.join(proc.info['cmdline']).lower()
+
+            # Расширенная фильтрация процессов
+            is_chrome = any(
+                keyword in cmdline
+                for keyword in (
+                    'chrome',
+                    'chromedriver',
+                    'chromium',
+                    'headless',
+                    '--type=renderer',
+                    '--type=gpu-process'
+                )
+            )
+
+            if is_chrome and proc.info['status'] != psutil.STATUS_ZOMBIE:
+                print(f"Found: PID={proc.info['pid']} CMD={cmdline[:120]}...")
+                chrome_pids.append(proc.info['pid'])
+                proc.kill()
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+            print(f"Error with PID {proc.info['pid']}: {str(e)}")
+            continue
+
+    # Двойная проверка через системные вызовы
+    if chrome_pids:
+        os.system("pkill -9 -f chrome")
+        os.system("pkill -9 -f chromedriver")
 
 
 @dp.startup()

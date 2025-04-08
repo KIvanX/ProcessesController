@@ -198,11 +198,15 @@ async def get_logs(message: types.Message):
 
 @dp.message(Command('reset'))
 async def reset(message: types.Message):
-    global created
+    global created, pause
     if str(message.chat.id) == os.environ['ADMIN_ID']:
         open(os.environ['WORKER_PATH'] + '/logs.log', 'w').close()
         created = 0
+        pause = True
         await message.delete()
+        for process in psutil.process_iter():
+            if process.name().lower() == 'chrome':
+                await terminate_process(process.pid)
 
 
 @dp.startup()

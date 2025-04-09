@@ -19,7 +19,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 dotenv.load_dotenv()
 
-NUM_PROCESSES = 2
+NUM_PROCESSES = 6
 bot = Bot(token=os.environ['TOKEN'], default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 ipv4 = requests.get("https://api.ipify.org").text.strip()
@@ -81,7 +81,7 @@ async def restorer():
                 dones = [log for log in logs if log.startswith(f'[{pid}]') and 'WARNING' in log]
                 if dones:
                     dt = datetime.strptime(dones[-1].split(']')[1].split('WARN')[0][1:-1], '%Y-%m-%d %H:%M:%S,%f')
-                    if dt + timedelta(minutes=5) < datetime.now():
+                    if dt + timedelta(minutes=10) < datetime.now():
                         await terminate_process(pid)
 
             await asyncio.sleep(10)
